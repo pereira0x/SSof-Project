@@ -1,6 +1,8 @@
 from MultiLabel import MultiLabel
 from Pattern import Pattern
-from Source import Source, Sanitizer, Sink
+from Source import Source
+from Sink import Sink
+from Sanitizer import Sanitizer
 
 class Policy:
     def __init__(self, patterns):

@@ -2,6 +2,9 @@ import sys
 import esprima
 import json
 from Pattern import Pattern
+from Policy import Policy
+from MultiLabelling import MultiLabelling
+from Vulnerabilities import Vulnerabilities
 
 
 def main():
@@ -12,13 +15,20 @@ def main():
     with open(sys.argv[1], "r") as f:
         slice = f.read()
 
-    ast = esprima.parseScript(slice, loc=True).toDict()
-    print(ast)
-
     with open(sys.argv[2], "r") as f:
         patterns = json.load(f)
     patterns = [Pattern(data) for data in patterns]
     print(patterns)
+
+    policy = Policy(patterns)
+    multiLabelling = MultiLabelling()
+    vulnerabilities = Vulnerabilities()
+    print(policy)
+    print(multiLabelling)
+    print(vulnerabilities)
+
+    ast = esprima.parseScript(slice, loc=True).toDict()
+    print(ast)
 
 
 if __name__ == "__main__":

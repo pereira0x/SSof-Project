@@ -70,3 +70,6 @@ class Policy:
             return newMultiLabel
         else:
             raise ValueError("Invalid multiLabel")
+        
+    def __repr__(self):
+        return f"Policy | patterns: {self.patterns}"

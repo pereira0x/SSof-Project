@@ -5,6 +5,7 @@ from Pattern import Pattern
 from Policy import Policy
 from MultiLabelling import MultiLabelling
 from Vulnerabilities import Vulnerabilities
+from Analyser import Analyser
 
 
 def main():
@@ -27,8 +28,15 @@ def main():
     print(multiLabelling)
     print(vulnerabilities)
 
-    ast = esprima.parseScript(slice, loc=True).toDict()
-    print(ast)
+    ast = esprima.parseScript(slice, loc=True)
+    #print(ast)
+    
+    analyser = Analyser(policy, multiLabelling, vulnerabilities)
+    ehe = analyser.run(ast)
+    print(ehe)
+    print(policy)
+    print(multiLabelling)
+    print(vulnerabilities)
 
 
 if __name__ == "__main__":

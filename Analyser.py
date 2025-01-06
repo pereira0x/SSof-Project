@@ -45,6 +45,9 @@ class Analyser(esprima.NodeVisitor):
 
     def visit_CallExpression(self, node: nodes.CallExpression):
         print("I am visiting a call expression")
+        self.visit(node.callee)
+        for arg in node.arguments:
+            self.visit(arg)
 
     def visit_ExpressionStatement(self, node: nodes.ExpressionStatement):
         print("I am visiting an expression statement")

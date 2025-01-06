@@ -32,8 +32,7 @@ def main():
     #print(ast)
     
     analyser = Analyser(policy, multiLabelling, vulnerabilities)
-    ehe = analyser.run(ast)
-    print(ehe)
+    analyser.visit(ast)
     print(policy)
     print(multiLabelling)
     print(vulnerabilities)

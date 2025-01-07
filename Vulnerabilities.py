@@ -60,27 +60,27 @@ class Vulnerabilities:
         for key, value in data.items():
             count = 1
             for sink, label in value:
-                for source, sanitizers in label.getSourcesSanitizers():
+                for source, sanitizers in label.source_sanitizers:
                     done = False
                     for vuln in result:
                         if (
                             vuln["vulnerability"][0] == key
-                            and vuln["source"] == [source.getName(), source.getLine()]
-                            and vuln["sink"] == [sink.getName(), sink.getLine()]
+                            and vuln["source"] == [source.name, source.lineno]
+                            and vuln["sink"] == [sink.name, sink.lineno]
                         ):
                             if sanitizers == []:
                                 vuln["unsanitized_flows"] = "yes"
                             else:
                                 vuln["sanitized_flows"].append(
-                                    [[x.getName(), x.getLine()] for x in sanitizers]
+                                    [[x.name, x.lineno] for x in sanitizers]
                                 )
                             done = True
                             break
                     if not done:
                         vuln = {
                             "vulnerability": key + "_" + str(count),
-                            "source": [source.getName(), source.getLine()],
-                            "sink": [sink.getName(), sink.getLine()],
+                            "source": [source.name, source.lineno],
+                            "sink": [sink.name, sink.lineno],
                         }
                         if sanitizers == []:
                             vuln["unsanitized_flows"] = "yes"
@@ -88,7 +88,7 @@ class Vulnerabilities:
                         else:
                             vuln["unsanitized_flows"] = "no"
                             vuln["sanitized_flows"] = [
-                                [[x.getName(), x.getLine()] for x in sanitizers]
+                                [[x.name, x.lineno] for x in sanitizers]
                             ]
                         result.append(vuln)
                         count += 1

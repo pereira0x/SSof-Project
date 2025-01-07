@@ -1,7 +1,7 @@
 class Sink:
     def __init__(self, name, lineno):
         self.name = name
-        self.line = lineno
+        self.lineno = lineno
 
     def __repr__(self):
         return f"Sink | name: {self.name}: lineno={self.lineno}"

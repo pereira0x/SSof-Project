@@ -41,7 +41,7 @@ class Analyser(esprima.NodeVisitor):
         elif isinstance(node, nodes.Identifier):
             self.visit_Identifier(node)
         else:
-            print("Woah, what is this?")
+            print("Unknown node type: " + str(type(node)))
 
     def visit_CallExpression(self, node: nodes.CallExpression):
         print("I am visiting a call expression")
@@ -55,8 +55,8 @@ class Analyser(esprima.NodeVisitor):
 
     def visit_AssignmentExpression(self, node: nodes.AssignmentExpression):
         print("I am visiting an assignment expression")
-        self.visit(node.left)
         self.visit(node.right)
+        self.visit(node.left)
 
     def visit_Literal(self, node: nodes.Literal):
         print("I am visiting a literal")

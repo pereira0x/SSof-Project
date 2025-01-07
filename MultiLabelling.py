@@ -6,7 +6,7 @@ class MultiLabelling:
         self.multiLabels = {}
         # map variable name to MultiLabel(s)
 
-    def getMultiLabelsByVarName(self, varName):
+    def getMultiLabelByVarName(self, varName):
         if varName not in self.multiLabels:
             return None
         return self.multiLabels[varName]
@@ -25,13 +25,13 @@ class MultiLabelling:
             newMultiLabelling = MultiLabelling()
             for varName in self.multiLabels:
                 newMultiLabelling.setMultiLabel(
-                    varName, self.getMultiLabelsByVarName(varName).deepcopy()
+                    varName, self.getMultiLabelByVarName(varName).deepcopy()
                 )
             for varName in other.multiLabels:
                 if varName in newMultiLabelling.multiLabels:
                     newMultiLabelling.setMultiLabel(
                         varName,
-                        newMultiLabelling.getMultiLabelsByVarName(varName)
+                        newMultiLabelling.getMultiLabelByVarName(varName)
                         + other.getMultiLabelsByVarName(varName),
                     )
                 else:

@@ -1,6 +1,13 @@
 import esprima
 import MultiLabelling
+from Source import Source
+from MultiLabel import MultiLabel
+from Label import Label
+from Sink import Sink
 from esprima import nodes
+from Policy import Policy
+from Sanitizer import Sanitizer
+
 
 class Analyser(esprima.NodeVisitor):
 
@@ -9,8 +16,6 @@ class Analyser(esprima.NodeVisitor):
         self.multiLabelling = multiLabelling
         self.vulnerabilities = vulnerabilities
         self.functions = []
-
-    # TODO: if literal is a function call??
 
     def visit_Script(self, node: nodes.Script):
         print("I am visiting a script")
@@ -26,37 +31,109 @@ class Analyser(esprima.NodeVisitor):
             else:
                 print("Woah, what is this?")
 
-    def visit_Identifier(self, node: nodes.Identifier):
+    # TODO: if literal is a function call??
+    def visit_Identifier(
+        self, node: nodes.Identifier, multiLabelling=None, call: bool = False
+    ):
         print("I am visiting an identifier")
 
-    def visit_simpleNodes(self, node):
+        if multiLabelling is None:
+            multiLabelling = self.multiLabelling
+
+        source = Source(node.name, node.loc.start.line)
+
+        multiLabel = multiLabelling.getMultiLabelByVarName(node.name)
+
+        # this will handle the case where the variable is not initialized
+        # because by default, every variable that is not initialized is
+        # a source for every vulnerability
+        if multiLabel is None:
+            multiLabel = MultiLabel()
+            if not call:
+                for vuln in self.policy.getVulnerabilities():
+                    label = Label()
+                    label.addSource(source)
+                    multiLabel.addLabel(vuln, label)
+                return multiLabel
+        elif call:
+            multiLabel = MultiLabel()
+
+        for vuln in self.policy.getVulnerabilitiesBySource(source):
+            pattern = self.policy.getPatternByName(vuln)
+            label = Label()
+            label.addSource(source)
+            multiLabel.addLabel(pattern.vulnerability, label)
+
+        multiLabelling.setMultiLabel(node.name, multiLabel)
+        return multiLabel
+
+    def visit_simpleNodes(self, node, multiLabelling=None):
         if isinstance(node, nodes.CallExpression):
-            self.visit_CallExpression(node)
-        elif isinstance(node, nodes.ExpressionStatement):
-            self.visit_ExpressionStatement(node)
-        elif isinstance(node, nodes.AssignmentExpression):
-            self.visit_AssignmentExpression(node)
-        elif isinstance(node, nodes.Literal):
-            self.visit_Literal(node)
+            m = self.visit_CallExpression(node, multiLabelling)
         elif isinstance(node, nodes.Identifier):
-            self.visit_Identifier(node)
+            m = self.visit_Identifier(node, multiLabelling)
         else:
-            print("Unknown node type: " + str(type(node)))
+            m = MultiLabel()
 
-    def visit_CallExpression(self, node: nodes.CallExpression):
+        return m
+
+    def visit_CallExpression(self, node: nodes.CallExpression, multiLabelling=None):
         print("I am visiting a call expression")
-        self.visit(node.callee)
-        for arg in node.arguments:
-            self.visit(arg)
+        functionName = node.callee.name
+        multiLabel = self.visit_Identifier(node.callee, multiLabelling, call=True)
 
-    def visit_ExpressionStatement(self, node: nodes.ExpressionStatement):
+        for arg in node.arguments:
+            multiLabel += self.visit_simpleNodes(arg, multiLabelling=multiLabelling)
+
+        for vuln in multiLabel.labels:
+            if self.policy.getPatternByName(vuln).isSanitizer(functionName):
+                sanitizer = Sanitizer(functionName, node.callee.loc.start.line)
+                multiLabel.getLabel(vuln).addSanitizer(sanitizer)
+
+        sink = Sink(functionName, node.callee.loc.start.line)
+        self.detectIllegalFlows(sink, multiLabel)
+
+        return multiLabel
+
+    def visit_BinOp(self, node: nodes.BinaryExpression, multiLabelling=None):
+        print("I am visiting a binary operation")
+        multiLabel1 = self.visit_simpleNodes(node.left, multiLabelling=multiLabelling)
+        multiLabel2 = self.visit_simpleNodes(node.right, multiLabelling=multiLabelling)
+
+        return multiLabel1 + multiLabel2
+
+    def visit_ExpressionStatement(
+        self, node: nodes.ExpressionStatement, multiLabelling=None
+    ):
         print("I am visiting an expression statement")
         self.visit(node.expression)
 
-    def visit_AssignmentExpression(self, node: nodes.AssignmentExpression):
+    def visit_AssignmentExpression(
+        self, node: nodes.AssignmentExpression, multiLabelling=None
+    ):
         print("I am visiting an assignment expression")
-        self.visit(node.right)
-        self.visit(node.left)
+        """ self.visit(node.right)
+        self.visit(node.left) """
 
-    def visit_Literal(self, node: nodes.Literal):
+        if multiLabelling is None:
+            multiLabelling = self.multiLabelling
+
+        # visit right side
+        multiLabel = self.visit_simpleNodes(node.right, multiLabelling=multiLabelling)
+
+        if multiLabel is not None:
+            multiLabelling.setMultiLabel(node.left.name, multiLabel)
+            sink = Sink(node.left.name, node.loc.start.line)
+            self.detectIllegalFlows(sink, multiLabel)
+
+    def visit_Literal(self, node: nodes.Literal, multiLabelling=None):
         print("I am visiting a literal")
+    
+
+    def detectIllegalFlows(self, sink, multiLabel):
+
+        illegal_multiLabel = self.policy.illegalFlow(sink.name, multiLabel)
+
+        if illegal_multiLabel:
+            for vulnName in illegal_multiLabel.labels:
+                self.vulnerabilities.addIllegalFlow(sink, vulnName, illegal_multiLabel)

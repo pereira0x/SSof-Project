@@ -36,6 +36,10 @@ def main():
     print(policy)
     print(multiLabelling)
     print(vulnerabilities)
+    
+    with open("output.json", "w") as f:
+        vuln = json.dumps(vulnerabilities.toJSON(), indent=4)
+        f.write(vuln)
 
 
 if __name__ == "__main__":

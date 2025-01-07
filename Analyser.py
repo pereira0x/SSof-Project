@@ -74,6 +74,8 @@ class Analyser(esprima.NodeVisitor):
             m = self.visit_Identifier(node, multiLabelling)
         elif isinstance(node, nodes.BinaryExpression):
             m = self.visit_BinOp(node, multiLabelling)
+        elif isinstance(node, nodes.StaticMemberExpression):
+            m = self.visit_StaticMemberExpression(node, multiLabelling)
         else:
             m = MultiLabel()
 
@@ -82,8 +84,12 @@ class Analyser(esprima.NodeVisitor):
     def visit_CallExpression(self, node: nodes.CallExpression, multiLabelling=None):
         print("I am visiting a call expression")
         # a(b,1,2,3)
-        functionName = node.callee.name
-        multiLabel = self.visit_Identifier(node.callee, multiLabelling, call=True)
+        if isinstance(node.callee, nodes.StaticMemberExpression):
+            functionName = node.callee.property
+            multiLabel = self.visit_StaticMemberExpression(node.callee, multiLabelling)
+        else:
+            functionName = node.callee.name
+            multiLabel = self.visit_Identifier(node.callee, multiLabelling, call=True)
 
         for arg in node.arguments:
             multiLabel += self.visit_simpleNodes(arg, multiLabelling=multiLabelling)
@@ -123,15 +129,51 @@ class Analyser(esprima.NodeVisitor):
 
         # visit right side
         multiLabel = self.visit_simpleNodes(node.right, multiLabelling=multiLabelling)
-
+        
         if multiLabel is not None:
-            multiLabelling.setMultiLabel(node.left.name, multiLabel)
-            sink = Sink(node.left.name, node.loc.start.line)
-            self.detectIllegalFlows(sink, multiLabel)
+            if isinstance(node.left, nodes.StaticMemberExpression):   # a.b() = something
+                propertyName = node.left.property.name
+                
+                multiLabelProperty = self.visit_StaticMemberExpression(node.left, multiLabelling, True)
+                
+                multiLabelling.setMultiLabel(propertyName, multiLabel)
+                sink = Sink(node.left.object.name, node.left.object.loc.start.line)
+                self.detectIllegalFlows(sink, multiLabelProperty + multiLabel)
+                
+                sink = Sink(propertyName, node.left.loc.start.line)
+                self.detectIllegalFlows(sink, multiLabel)
+            
+            else:
+                multiLabelling.setMultiLabel(node.left.name, multiLabel)
+                sink = Sink(node.left.name, node.loc.start.line)
+                self.detectIllegalFlows(sink, multiLabel)
 
     def visit_Literal(self, node: nodes.Literal, multiLabelling=None):
         print("I am visiting a literal")
     
+    
+    def visit_StaticMemberExpression(self, node: nodes.StaticMemberExpression, multiLabelling=None, isAssignTarget=False):
+        print("I am visiting a Static Member expression")
+        # object.property
+        # isAssignTarget true when b.m() = something
+        # and isAssignTarget false when something = b.m()
+        
+        varMultiLabel = MultiLabel() if isAssignTarget else self.visit_simpleNodes(node.object, multiLabelling)
+        propertyName = node.property.name
+        source = Source(propertyName, node.loc.start.line)
+        propertyMultiLabel = multiLabelling.getMultiLabelByVarName(propertyName)
+        if propertyMultiLabel is None:
+            propertyMultiLabel = MultiLabel()
+        
+        for vuln in self.policy.getVulnerabilitiesBySource(source):
+            pattern = self.policy.getPatternByName(vuln)
+            label = Label()
+            label.addSource(source)
+            propertyMultiLabel.addLabel(pattern.vulnerability, label)
+        
+        multiLabelling.setMultiLabel(propertyName, propertyMultiLabel)
+        
+        return varMultiLabel + propertyMultiLabel
 
     def detectIllegalFlows(self, sink, multiLabel):
 

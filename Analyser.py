@@ -50,7 +50,7 @@ class Analyser(esprima.NodeVisitor):
         if multiLabel is None:
             multiLabel = MultiLabel()
             if not call:
-                for vuln in self.policy.getVulnerabilities():
+                for vuln in self.policy.getVulnerabilities(): 
                     label = Label()
                     label.addSource(source)
                     multiLabel.addLabel(vuln, label)
@@ -72,6 +72,8 @@ class Analyser(esprima.NodeVisitor):
             m = self.visit_CallExpression(node, multiLabelling)
         elif isinstance(node, nodes.Identifier):
             m = self.visit_Identifier(node, multiLabelling)
+        elif isinstance(node, nodes.BinaryExpression):
+            m = self.visit_BinOp(node, multiLabelling)
         else:
             m = MultiLabel()
 
@@ -79,6 +81,7 @@ class Analyser(esprima.NodeVisitor):
 
     def visit_CallExpression(self, node: nodes.CallExpression, multiLabelling=None):
         print("I am visiting a call expression")
+        # a(b,1,2,3)
         functionName = node.callee.name
         multiLabel = self.visit_Identifier(node.callee, multiLabelling, call=True)
 

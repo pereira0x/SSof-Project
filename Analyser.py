@@ -40,7 +40,12 @@ class Analyser(esprima.NodeVisitor):
                     multiLabellings = new_multiLabellings
                 else:
                     multiLabellings += new_multiLabellings
-                
+            elif isinstance(op, nodes.WhileStatement):
+                new_multiLabellings = []
+                for multiLabelling in multiLabellings:
+                    while_multiLabellings = self.visit_WhileStatement(op, multiLabelling)
+                    new_multiLabellings += while_multiLabellings
+                multiLabellings += new_multiLabellings
             else:
                 print("Woah, what is this?")
 
@@ -213,7 +218,6 @@ class Analyser(esprima.NodeVisitor):
             multiLabelling = self.multiLabelling
         
         multiLabelling_cond = multiLabelling.deepcopy()
-        
         multiLabel = self.visit_simpleNodes(node.test, multiLabelling=multiLabelling_cond)
         
         if multiLabel_cond is not None:
@@ -274,6 +278,51 @@ class Analyser(esprima.NodeVisitor):
         print("AFTER ELSE MULTILAABELLING" + str(else_multiLabellings))
         print(" COMBINE MULTILABELLING" + str(if_multiLabellings + else_multiLabellings))
         return if_multiLabellings + else_multiLabellings, else_exists      
+    
+    def visit_WhileStatement(self, node: nodes.WhileStatement, multiLabelling=None, multiLabel_cond=None, max_loop_iterations=5):
+        print("I am visiting a while statement")
+        
+        if multiLabelling is None:
+            multiLabelling = self.multiLabelling
+
+        multiLabellings_while = [multiLabelling.deepcopy()]
+
+        for _ in range(max_loop_iterations):
+            for multiLabelling_aux in multiLabellings_while:
+                multiLabel = self.visit_simpleNodes(node.test, multiLabelling=multiLabelling_aux)
+
+            if multiLabel_cond is not None:
+                multiLabel += multiLabel_cond
+
+            if isinstance(node.body, nodes.BlockStatement):
+                statements = node.body.body
+            else:
+                statements = [node.body]
+
+            for op in statements:
+                if isinstance(op, nodes.ExpressionStatement):
+                    for multiLabelling_aux in multiLabellings_while:
+                        self.visit_ExpressionStatement(op, multiLabelling_aux, multiLabel)
+                elif isinstance(op, nodes.AssignmentExpression):
+                    for multiLabelling_aux in multiLabellings_while:
+                        self.visit_AssignmentExpression(op, multiLabelling_aux, multiLabel)
+                elif isinstance(op, nodes.IfStatement):
+                    new_multiLabellings = []
+                    for multiLabelling_aux in multiLabellings_while:
+                        if_multiLabelling, else_exists = self.visit_IFStatement(op, multiLabelling_aux, multiLabel)
+                        new_multiLabellings += if_multiLabelling
+                    if else_exists:
+                        multiLabellings_while = new_multiLabellings
+                    else:
+                        multiLabellings_while += new_multiLabellings
+                elif isinstance(op, nodes.WhileStatement):
+                    new_multiLabellings = []
+                    for multiLabelling_aux in multiLabellings_while:
+                        nested_while_multiLabellings = self.visit_WhileStatement(op, multiLabelling_aux, multiLabel)
+                        new_multiLabellings += nested_while_multiLabellings
+                    multiLabellings_while += new_multiLabellings
+
+        return multiLabellings_while
 
     def detectIllegalFlows(self, sink, multiLabel):
 

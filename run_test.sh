@@ -41,7 +41,7 @@ for file in $js_files; do
     python3 validate.py -o output.json -t "$output_file" > validation_output.txt
 
     # Check if the output contains the strings "MISSING FLOWS" or "WRONG FLOWS"
-    if grep -qE "MISSING FLOWS|WRONG FLOWS" validation_output.txt; then
+    if grep -qE "MISSING FLOWS|WRONG FLOWS|wrong type" validation_output.txt; then
         echo -e "\e[31m$file failed\e[0m"
         if $stop_script; then
             break

@@ -23,10 +23,12 @@ class Analyser(esprima.NodeVisitor):
         for op in node.body:
 
             if isinstance(op, nodes.ExpressionStatement):
-                self.visit_ExpressionStatement(op)
+                for multiLabelling in multiLabellings:
+                    self.visit_ExpressionStatement(op, multiLabelling)
 
             elif isinstance(op, nodes.AssignmentExpression):
-                self.visit_AssignmentExpression(op)
+              for multiLabelling in multiLabellings:
+                  self.visit_AssignmentExpression(op, multiLabelling)
             
             elif isinstance(op, nodes.IfStatement):
                 new_multiLabellings = []
@@ -37,7 +39,7 @@ class Analyser(esprima.NodeVisitor):
                     multiLabellings = new_multiLabellings
                 else:
                     multiLabellings += new_multiLabellings
-
+                
             else:
                 print("Woah, what is this?")
 
@@ -128,10 +130,15 @@ class Analyser(esprima.NodeVisitor):
         return multiLabel1 + multiLabel2
 
     def visit_ExpressionStatement(
-        self, node: nodes.ExpressionStatement, multiLabelling=None
+        self, node: nodes.ExpressionStatement, multiLabelling=None, multiLabel_cond=None
     ):
         print("I am visiting an expression statement")
-        self.visit(node.expression)
+        if isinstance(node.expression, nodes.AssignmentExpression):
+            self.visit_AssignmentExpression(node.expression, multiLabelling, multiLabel_cond)
+        if isinstance(node.expression, nodes.CallExpression):
+            self.visit_CallExpression(node.expression, multiLabelling, multiLabel_cond)
+        else:
+          self.visit(node.expression)
 
     def visit_AssignmentExpression(
         self, node: nodes.AssignmentExpression, multiLabelling=None, multiLabel_cond=None
@@ -215,15 +222,9 @@ class Analyser(esprima.NodeVisitor):
         
         for op in node.consequent.body:
             if isinstance(op, nodes.ExpressionStatement):
-              if isinstance(op.expression, nodes.AssignmentExpression):
-                print("AHJDHAHDKD")
-                for multiLabelling_aux in if_multiLabellings:
-                    self.visit_AssignmentExpression(op.expression, multiLabelling_aux, multiLabel)
+              for multiLabelling_aux in if_multiLabellings:
+                  self.visit_ExpressionStatement(op, multiLabelling_aux, multiLabel)
                     
-            elif isinstance(op, nodes.AssignmentExpression):
-                for multiLabelling_aux in if_multiLabellings:
-                    self.visit_AssignmentExpression(op, multiLabelling_aux, multiLabel)
-                  
             elif isinstance(op, nodes.IfStatement):
                 new_multiLabellings = []
                 for multiLabelling_aux in if_multiLabellings:
@@ -239,6 +240,7 @@ class Analyser(esprima.NodeVisitor):
                     if_multiLabellings += new_multiLabellings
                     
                 # TODO: missing while node
+        print("AFTER IF MULTILAABELLING" + str(if_multiLabellings))
                 
         else_multiLabellings = [multiLabelling_cond.deepcopy()]
         else_exists = False
@@ -249,18 +251,8 @@ class Analyser(esprima.NodeVisitor):
             for op in node.alternate.body:
                 print("IM DETECTING AN OP")
                 if isinstance(op, nodes.ExpressionStatement):
-                    print("LLLLL")
-                    if isinstance(op.expression, nodes.CallExpression):
-                        for multiLabelling_aux in else_multiLabellings:
-                            self.visit_CallExpression(op.expression, multiLabelling_aux)
-                    elif isinstance(op.expression, nodes.AssignmentExpression):
-                        print("AHJDHAHDKD")
-                        for multiLabelling_aux in else_multiLabellings:
-                            self.visit_AssignmentExpression(op.expression, multiLabelling_aux, multiLabel)          
-                elif isinstance(op, nodes.AssignmentExpression):
-                    print("DJDJDJ")
                     for multiLabelling_aux in else_multiLabellings:
-                        self.visit_AssignmentExpression(op, multiLabelling_aux, multiLabel)
+                        self.visit_ExpressionStatement(op, multiLabelling_aux, multiLabel)     
                 elif isinstance(op, nodes.IfStatement):
                     print("DAJDHAK")
                     new_multiLabellings = []
@@ -278,7 +270,8 @@ class Analyser(esprima.NodeVisitor):
                 # TODO: missing while node
                 else:
                     print("Woah, what is this?")
-                
+        print("AFTER ELSE MULTILAABELLING" + str(else_multiLabellings))
+        print(" COMBINE MULTILABELLING" + str(if_multiLabellings + else_multiLabellings))
         return if_multiLabellings + else_multiLabellings, else_exists      
 
     def detectIllegalFlows(self, sink, multiLabel):

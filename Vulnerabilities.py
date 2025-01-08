@@ -8,7 +8,7 @@ class Vulnerabilities:
     def __init__(self):
         self.vulnerability = {}
         # maps name of vulnerability to the illegal flow (sink, labels[])
-        
+
         """
         vul1: (sink1, [l1, l2, l3]), vul2: (sink2, [l4, l5, l6])
         
@@ -54,19 +54,44 @@ class Vulnerabilities:
         return f"Vulnerabilities | vulnerability: {self.vulnerability}"
 
     def toJSON(self):
+        data = self.vulnerability
         result = []
 
-        for key, value in self.vulnerability.items():
-            for index, (sink, label) in enumerate(value, start=1):
+        for key, value in data.items():
+            count = 1
+            for sink, label in value:
                 for source, sanitizers in label.source_sanitizers:
-                    vuln = {
-                        "vulnerability": f"{key}_{index}",
-                        "source": [source.name, source.lineno],
-                        "sink": [sink.name, sink.lineno],
-                        "implicit": "no",
-                        "unsanitized_flows": "yes" if sanitizers == [] else "no",
-                        "sanitized_flows": [[x.name, x.lineno] for x in sanitizers],
-                    }
-                    result.append(vuln)
+                    done = False
+                    for vuln in result:
+                        if (
+                            vuln["vulnerability"][0] == key
+                            and vuln["source"] == [source.name, source.lineno]
+                            and vuln["sink"] == [sink.name, sink.lineno]
+                        ):
+                            if sanitizers == []:
+                                vuln["unsanitized_flows"] = "yes"
+                            else:
+                                vuln["sanitized_flows"].append(
+                                    [[x.name, x.lineno] for x in sanitizers]
+                                )
+                            done = True
+                            break
+                    if not done:
+                        vuln = {
+                            "vulnerability": key + "_" + str(count),
+                            "source": [source.name, source.lineno],
+                            "sink": [sink.name, sink.lineno],
+                            "implicit": "no",
+                        }
+                        if sanitizers == []:
+                            vuln["unsanitized_flows"] = "yes"
+                            vuln["sanitized_flows"] = []
+                        else:
+                            vuln["unsanitized_flows"] = "no"
+                            vuln["sanitized_flows"] = [
+                                [[x.name, x.lineno] for x in sanitizers]
+                            ]
+                        result.append(vuln)
+                        count += 1
 
         return result

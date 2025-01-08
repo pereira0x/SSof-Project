@@ -81,7 +81,7 @@ class Vulnerabilities:
                             "vulnerability": key + "_" + str(count),
                             "source": [source.name, source.lineno],
                             "sink": [sink.name, sink.lineno],
-                            "implicit": "no",
+                            "implicit": "no" if label.is_implicit == False else "yes",
                         }
                         if sanitizers == []:
                             vuln["unsanitized_flows"] = "yes"

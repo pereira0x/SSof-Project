@@ -24,18 +24,12 @@ def main():
     policy = Policy(patterns)
     multiLabelling = MultiLabelling()
     vulnerabilities = Vulnerabilities()
-    print(policy)
-    print(multiLabelling)
-    print(vulnerabilities)
 
     ast = esprima.parseScript(slice, loc=True)
     #print(ast)
     
     analyser = Analyser(policy, multiLabelling, vulnerabilities)
     analyser.visit(ast)
-    print(policy)
-    print(multiLabelling)
-    print(vulnerabilities)
     
     with open("output.json", "w") as f:
         vuln = json.dumps(vulnerabilities.toJSON(), indent=4)

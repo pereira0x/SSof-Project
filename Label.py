@@ -7,6 +7,7 @@ class Label:
 
     def __init__(self):
         self.source_sanitizers = []
+        self.is_implicit = False
 
     def addSourceSanitizers(self, source, sanitizers):
         if not self.hasSourceSanitizers((source, sanitizers)):
@@ -41,7 +42,7 @@ class Label:
             raise ValueError("Invalid sanitizer")
 
     def __repr__(self):
-        return f"Label | source_sanitizers: {self.source_sanitizers}"
+        return f"Label | source_sanitizers: {self.source_sanitizers} | is_implicit: {self.is_implicit}"
 
     def __add__(self, other):
         newLabel = Label()
@@ -51,6 +52,7 @@ class Label:
         newLabel.source_sanitizers = copy.deepcopy(
             self.source_sanitizers + otherSourceSanitizers
         )
+        newLabel.is_implicit = self.is_implicit or other.is_implicit
         return newLabel
 
     def __eq__(self, other):
@@ -67,4 +69,5 @@ class Label:
     def deepcopy(self):
         newLabel = Label()
         newLabel.source_sanitizers = copy.deepcopy(self.source_sanitizers)
+        newLabel.is_implicit = self.is_implicit
         return newLabel

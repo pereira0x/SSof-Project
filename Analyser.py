@@ -98,7 +98,7 @@ class Analyser(esprima.NodeVisitor):
         print("I am visiting a call expression")
         # a(b,1,2,3)
         if isinstance(node.callee, nodes.StaticMemberExpression):
-            functionName = node.callee.property
+            functionName = node.callee.property.name
             multiLabel = self.visit_StaticMemberExpression(node.callee, multiLabelling)
         else:
             functionName = node.callee.name
@@ -136,7 +136,7 @@ class Analyser(esprima.NodeVisitor):
         print("I am visiting an expression statement")
         if isinstance(node.expression, nodes.AssignmentExpression):
             self.visit_AssignmentExpression(node.expression, multiLabelling, multiLabel_cond)
-        if isinstance(node.expression, nodes.CallExpression):
+        elif isinstance(node.expression, nodes.CallExpression):
             self.visit_CallExpression(node.expression, multiLabelling, multiLabel_cond)
         else:
           self.visit(node.expression)

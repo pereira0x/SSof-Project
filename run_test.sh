@@ -1,12 +1,19 @@
 #!/bin/bash
 
 # Run this as:
-# $ ./run_test.sh [--stop] [--keep]
+# $ ./run_test.sh [--stop] [--keep] [--slice=<name>.js]
 # --stop: Stop the script if a test fails
 # --keep: Keep the validation_output.txt and output.json files after the script finishes
+# --slice=<name>.js: Run a single file
+
 # Set default values for optional arguments
 stop_script=false
 keep_files=false
+single_file=""
+
+# Initialize counters
+tests_passed=0
+tests_failed=0
 
 # Parse command line arguments
 while [[ $# -gt 0 ]]; do
@@ -20,6 +27,10 @@ while [[ $# -gt 0 ]]; do
         keep_files=true
         shift
         ;;
+        --slice=*.js)
+        single_file="${key#*=}"
+        shift
+        ;;
         *)
         echo "Unknown option: $key"
         exit 1
@@ -28,7 +39,11 @@ while [[ $# -gt 0 ]]; do
 done
 
 # Get the list of .js files in the slices folder and sort them
-js_files=$(find my_slices -type f -name "*.js" | sort)
+if [ -z "$single_file" ]; then
+    js_files=$(find my_slices -type f -name "*.js" | sort)
+else
+    js_files="my_slices/$single_file"
+fi
 
 # Loop through each .js file
 for file in $js_files; do
@@ -43,11 +58,13 @@ for file in $js_files; do
     # Check if the output contains the strings "MISSING FLOWS" or "WRONG FLOWS"
     if grep -qE "MISSING FLOWS|WRONG FLOWS|wrong type" validation_output.txt; then
         echo -e "\e[31m$file failed\e[0m"
+        tests_failed=$((tests_failed+1))
         if $stop_script; then
             break
         fi
     else
         echo -e "\e[32m$file passed\e[0m"
+        tests_passed=$((tests_passed+1))
     fi
 done
 
@@ -55,3 +72,8 @@ done
 if ! $keep_files; then
     rm validation_output.txt output.json
 fi
+
+# Display test results
+echo -e "\nTest Results:"
+echo -e "Tests Passed: \e[32m$tests_passed\e[0m"
+echo -e "Tests Failed: \e[31m$tests_failed\e[0m"

@@ -19,6 +19,7 @@ class Analyser(esprima.NodeVisitor):
 
     def visit_Script(self, node: nodes.Script):
         print("I am visiting a script")
+        # list because we can have multiple scopes (e.g ifs whiles)
         multiLabellings = [self.multiLabelling]
         for op in node.body:
 

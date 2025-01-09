@@ -1,0 +1,100 @@
+[
+    {
+        "vulnerability": "Command Injection",
+        "sources": [
+            "req.body",
+            "req.query",
+            "req.params"
+        ],
+        "sanitizers": [],
+        "sinks": [
+            "child_process.exec",
+            "child_process.execSync",
+            "child_process.spawn",
+            "child_process.spawnSync"
+        ],
+        "implicit": "no"
+    },
+    {
+        "vulnerability": "SQL Injection",
+        "sources": [
+            "req.body",
+            "req.query",
+            "req.params"
+        ],
+        "sanitizers": [
+            "mysql.escape",
+            "mysql.format",
+            "pg.escape",
+            "pg.format",
+            "sqlite3.prepare"
+        ],
+        "sinks": [
+            "mysql.query",
+            "pg.query",
+            "sqlite3.run"
+        ],
+        "implicit": "no"
+    },
+    {
+        "vulnerability": "Cross-Site Scripting (XSS)",
+        "sources": [
+            "req.body",
+            "req.query",
+            "req.params",
+            "document.cookie",
+            "window.location",
+            "localStorage"
+        ],
+        "sanitizers": [
+            "escapeHTML",
+            "DOMPurify.sanitize"
+        ],
+        "sinks": [
+            "innerHTML",
+            "outerHTML",
+            "document.write",
+            "eval",
+            "setTimeout",
+            "setInterval"
+        ],
+        "implicit": "no"
+    },
+    {
+        "vulnerability": "Path Traversal",
+        "sources": [
+            "req.body",
+            "req.query",
+            "req.params"
+        ],
+        "sanitizers": [
+            "path.normalize",
+            "path.resolve"
+        ],
+        "sinks": [
+            "fs.readFile",
+            "fs.readFileSync",
+            "fs.writeFile",
+            "fs.writeFileSync",
+            "fs.unlink",
+            "fs.unlinkSync"
+        ],
+        "implicit": "no"
+    },
+    {
+        "vulnerability": "Remote Code Execution",
+        "sources": [
+            "req.body",
+            "req.query",
+            "req.params"
+        ],
+        "sanitizers": [],
+        "sinks": [
+            "eval",
+            "Function",
+            "setTimeout",
+            "setInterval"
+        ],
+        "implicit": "no"
+    }
+]

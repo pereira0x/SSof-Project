@@ -31,7 +31,7 @@ class Vulnerabilities:
                         [sink, multiLabel.getLabel(vulnName)],
                     )
                 else:
-                    existingFlows = self.vulnerability[vulnName] # [sink, labels[]]
+                    existingFlows = self.vulnerability[vulnName]  # [sink, labels[]]
                     labels = multiLabel.getLabel(vulnName)
                     newFlow = [sink, labels]
 
@@ -54,10 +54,9 @@ class Vulnerabilities:
         return f"Vulnerabilities | vulnerability: {self.vulnerability}"
 
     def toJSON(self):
-        data = self.vulnerability
         result = []
 
-        for key, value in data.items():
+        for key, value in self.vulnerability.items():
             count = 1
             for sink, label in value:
                 for source, sanitizers in label.source_sanitizers:
@@ -68,7 +67,7 @@ class Vulnerabilities:
                             and vuln["source"] == [source.name, source.lineno]
                             and vuln["sink"] == [sink.name, sink.lineno]
                         ):
-                            if sanitizers == []:
+                            if not sanitizers:
                                 vuln["unsanitized_flows"] = "yes"
                             else:
                                 vuln["sanitized_flows"].append(
@@ -81,9 +80,8 @@ class Vulnerabilities:
                             "vulnerability": key + "_" + str(count),
                             "source": [source.name, source.lineno],
                             "sink": [sink.name, sink.lineno],
-                            "implicit": "no" if label.is_implicit == False else "yes",
                         }
-                        if sanitizers == []:
+                        if not sanitizers:
                             vuln["unsanitized_flows"] = "yes"
                             vuln["sanitized_flows"] = []
                         else:
@@ -91,6 +89,7 @@ class Vulnerabilities:
                             vuln["sanitized_flows"] = [
                                 [[x.name, x.lineno] for x in sanitizers]
                             ]
+                        vuln["implicit"] = "no" if not label.is_implicit else "yes"
                         result.append(vuln)
                         count += 1
 

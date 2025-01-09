@@ -1,5 +1,5 @@
-from MultiLabel import MultiLabel
-from Sink import Sink
+from src.MultiLabel import MultiLabel
+from src.Sink import Sink
 import json
 
 
@@ -19,40 +19,37 @@ class Vulnerabilities:
         
         """
 
-    def getIllegalFlowsByName(self, name):
+    def getIllegalInformationFlowsByName(self, name):
         return self.vulnerability[name]
 
-    def addIllegalFlow(self, sink, vulnName, multiLabel):
-        if isinstance(sink, Sink):
-            if isinstance(multiLabel, MultiLabel):
-                if vulnName not in self.vulnerability:
-                    self.vulnerability[vulnName] = (
-                        [sink, multiLabel.getLabel(vulnName)],
-                    )
-                else:
-                    existingFlows = self.vulnerability[vulnName]  # [sink, labels[]]
-                    labels = multiLabel.getLabel(vulnName)
-                    newFlow = [sink, labels]
+    def addIllegalInformationFlow(self, sink, vulnName, multiLabel):
+        if not isinstance(multiLabel, MultiLabel):
+            raise ValueError("Error: not a MultiLabel object")
 
-                    if newFlow not in existingFlows:
-                        existSink = False
-                        for flow in existingFlows:
-                            if flow[0] == sink:
-                                flow[1] = flow[1] + labels
-                                existSink = True
-                                break
-                        if not existSink:
-                            self.vulnerability[vulnName] = existingFlows + (newFlow,)
+        if not isinstance(sink, Sink):
+            raise ValueError("Error: not a Sink object")
 
-            else:
-                raise ValueError("Invalid multiLabel")
+        if vulnName in self.vulnerability:
+            currentFlows = self.vulnerability[vulnName]  # [sink, labels[]]
+            labels = multiLabel.getLabel(vulnName)
+            newFlow = [sink, labels]
+
+            if newFlow not in currentFlows:
+                foundSink = False
+                for currentFlow in currentFlows:
+                    if currentFlow[0] == sink:
+                        currentFlow[1] = currentFlow[1] + labels
+                        foundSink = True
+                        break
+                if not foundSink:
+                    self.vulnerability[vulnName] = currentFlows + (newFlow,)
         else:
-            raise ValueError("Invalid sink")
+            self.vulnerability[vulnName] = ([sink, multiLabel.getLabel(vulnName)],)
 
     def __repr__(self):
         return f"Vulnerabilities | vulnerability: {self.vulnerability}"
 
-    def toJSON(self):
+    def jsonify(self):
         result = []
 
         for key, value in self.vulnerability.items():
@@ -74,7 +71,10 @@ class Vulnerabilities:
                             vuln["unsanitized_flows"] = "yes"
                         else:
                             vuln["sanitized_flows"].append(
-                                [[x.name, x.lineno] for x in sanitizers]
+                                [
+                                    [sanitizer.name, sanitizer.lineno]
+                                    for sanitizer in sanitizers
+                                ]
                             )
                     else:
                         vuln = {
@@ -89,7 +89,10 @@ class Vulnerabilities:
                         else:
                             vuln["unsanitized_flows"] = "no"
                             vuln["sanitized_flows"] = [
-                                [[x.name, x.lineno] for x in sanitizers]
+                                [
+                                    [sanitizer.name, sanitizer.lineno]
+                                    for sanitizer in sanitizers
+                                ]
                             ]
                         result.append(vuln)
                         count += 1

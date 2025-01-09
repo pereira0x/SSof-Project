@@ -1,10 +1,16 @@
 import esprima
-from Source import Source
-from MultiLabel import MultiLabel
-from Label import Label
-from Sink import Sink
+from src.Source import Source
+from src.MultiLabel import MultiLabel
+from src.Label import Label
+from src.Sink import Sink
 from esprima import nodes
-from Sanitizer import Sanitizer
+from src.Sanitizer import Sanitizer
+import logging
+import os
+from dotenv import load_dotenv
+
+load_dotenv()
+logging.basicConfig(level=os.getenv("LOG_LEVEL"), format="[%(levelname)s]: %(message)s")
 
 
 class Analyser(esprima.NodeVisitor):
@@ -15,7 +21,7 @@ class Analyser(esprima.NodeVisitor):
         self.functions = []
 
     def visit_Script(self, node: nodes.Script):
-        print("I am visiting a script")
+        logging.debug("I am visiting a script")
         # list because we can have multiple scopes (e.g ifs whiles)
         multiLabellings = [self.multiLabelling]
         for op in node.body:
@@ -48,13 +54,13 @@ class Analyser(esprima.NodeVisitor):
                     new_multiLabellings += while_multiLabellings
                 multiLabellings += new_multiLabellings
             else:
-                print("Woah, what is this?")
+                logging.debug("Unexpected node type: %s", op)
 
     # TODO: if literal is a function call??
     def visit_Identifier(
         self, node: nodes.Identifier, multiLabelling=None, call: bool = False
     ):
-        print("I am visiting an identifier")
+        logging.debug("I am visiting a identifier")
 
         if multiLabelling is None:
             multiLabelling = self.multiLabelling
@@ -69,7 +75,7 @@ class Analyser(esprima.NodeVisitor):
         if multiLabel is None:
             multiLabel = MultiLabel()
             if not call:
-                for vuln in self.policy.getVulnerabilities():
+                for vuln in self.policy.getAllVulnerabilities():
                     label = Label()
                     label.addSource(source)
                     multiLabel.addLabel(vuln, label)
@@ -77,7 +83,7 @@ class Analyser(esprima.NodeVisitor):
         elif call:
             multiLabel = MultiLabel()
 
-        for vuln in self.policy.getVulnerabilitiesBySource(source):
+        for vuln in self.policy.getAllVulnerabilitiesBySource(source):
             pattern = self.policy.getPatternByName(vuln)
             label = Label()
             label.addSource(source)
@@ -103,7 +109,7 @@ class Analyser(esprima.NodeVisitor):
     def visit_CallExpression(
         self, node: nodes.CallExpression, multiLabelling=None, multiLabel_cond=None
     ):
-        print("I am visiting a call expression")
+        logging.debug("I am visiting a call expression")
         # a(b,1,2,3)
         if isinstance(node.callee, nodes.StaticMemberExpression):
             functionName = node.callee.property.name
@@ -128,12 +134,12 @@ class Analyser(esprima.NodeVisitor):
                 multiLabel.getLabel(vuln).addSanitizer(sanitizer)
 
         sink = Sink(functionName, node.callee.loc.start.line)
-        self.detectIllegalFlows(sink, multiLabel)
+        self.findIllegalInformationFlows(sink, multiLabel)
 
         return multiLabel
 
     def visit_BinOp(self, node: nodes.BinaryExpression, multiLabelling=None):
-        print("I am visiting a binary operation")
+        logging.debug("I am visiting a binary operation")
         multiLabel1 = self.visit_simpleNodes(node.left, multiLabelling=multiLabelling)
         multiLabel2 = self.visit_simpleNodes(node.right, multiLabelling=multiLabelling)
 
@@ -142,7 +148,7 @@ class Analyser(esprima.NodeVisitor):
     def visit_ExpressionStatement(
         self, node: nodes.ExpressionStatement, multiLabelling=None, multiLabel_cond=None
     ):
-        # print("I am visiting an expression statement")
+        logging.debug("I am visiting an expression statement")
         if isinstance(node.expression, nodes.AssignmentExpression):
             self.visit_AssignmentExpression(
                 node.expression, multiLabelling, multiLabel_cond
@@ -158,9 +164,7 @@ class Analyser(esprima.NodeVisitor):
         multiLabelling=None,
         multiLabel_cond=None,
     ):
-        print("I am visiting an assignment expression")
-        """ self.visit(node.right)
-        self.visit(node.left) """
+        logging.debug("I am visiting an assignment expression")
 
         if multiLabelling is None:
             multiLabelling = self.multiLabelling
@@ -187,18 +191,19 @@ class Analyser(esprima.NodeVisitor):
 
                 multiLabelling.setMultiLabel(propertyName, multiLabel)
                 sink = Sink(node.left.object.name, node.left.object.loc.start.line)
-                self.detectIllegalFlows(sink, multiLabelProperty + multiLabel)
+                self.findIllegalInformationFlows(sink, multiLabelProperty + multiLabel)
 
                 sink = Sink(propertyName, node.left.loc.start.line)
-                self.detectIllegalFlows(sink, multiLabel)
+                self.findIllegalInformationFlows(sink, multiLabel)
 
             else:
                 multiLabelling.setMultiLabel(node.left.name, multiLabel)
                 sink = Sink(node.left.name, node.loc.start.line)
-                self.detectIllegalFlows(sink, multiLabel)
+                self.findIllegalInformationFlows(sink, multiLabel)
 
     def visit_Literal(self, node: nodes.Literal, multiLabelling=None):
-        print("I am visiting a literal")
+        logging.debug("I am visiting a literal")
+        return MultiLabel()
 
     def visit_StaticMemberExpression(
         self,
@@ -206,7 +211,7 @@ class Analyser(esprima.NodeVisitor):
         multiLabelling=None,
         isAssignTarget=False,
     ):
-        print("I am visiting a Static Member expression")
+        logging.debug("I am visiting a static member expression")
         # object.property
         # isAssignTarget true when b.m() = something
         # and isAssignTarget false when something = b.m()
@@ -222,7 +227,7 @@ class Analyser(esprima.NodeVisitor):
         if propertyMultiLabel is None:
             propertyMultiLabel = MultiLabel()
 
-        for vuln in self.policy.getVulnerabilitiesBySource(source):
+        for vuln in self.policy.getAllVulnerabilitiesBySource(source):
             pattern = self.policy.getPatternByName(vuln)
             label = Label()
             label.addSource(source)
@@ -235,7 +240,7 @@ class Analyser(esprima.NodeVisitor):
     def visit_IFStatement(
         self, node: nodes.IfStatement, multiLabelling=None, multiLabel_cond=None
     ):
-        print("I am visiting an if statement")
+        logging.debug("I am visiting an if statement")
 
         # multiLabelling_cond = multiLabelling.deepcopy()
         if multiLabelling is None:
@@ -284,7 +289,7 @@ class Analyser(esprima.NodeVisitor):
         else_multiLabellings = [multiLabelling_cond.deepcopy()]
         else_exists = False
         if node.alternate:
-            print("I am visiting an else statement")
+            logging.debug("I am visiting an else statement")
             else_exists = True
 
             for op in node.alternate.body:
@@ -317,7 +322,7 @@ class Analyser(esprima.NodeVisitor):
                         new_multiLabellings += multiLabelling_while
                     else_multiLabellings += new_multiLabellings
                 else:
-                    print("Woah, what is this?")
+                    logging.debug("Unexpected node type: %s", op)
         return if_multiLabellings + else_multiLabellings, else_exists
 
     def visit_WhileStatement(
@@ -325,14 +330,17 @@ class Analyser(esprima.NodeVisitor):
         node: nodes.WhileStatement,
         multiLabelling=None,
         multiLabel_cond=None,
-        max_loop_iterations=6,
     ):
-        print("I am visiting a while statement")
+        logging.debug("I am visiting a while statement")
 
         if multiLabelling is None:
             multiLabelling = self.multiLabelling
 
         multiLabellings_while = [multiLabelling.deepcopy()]
+
+        max_loop_iterations = (
+            len(node.body.body) if isinstance(node.body, nodes.BlockStatement) else 1
+        )
 
         for _ in range(max_loop_iterations):
             for multiLabelling_aux in multiLabellings_while:
@@ -380,10 +388,12 @@ class Analyser(esprima.NodeVisitor):
                     multiLabellings_while += new_multiLabellings
         return multiLabellings_while
 
-    def detectIllegalFlows(self, sink, multiLabel):
+    def findIllegalInformationFlows(self, sink, multiLabel):
 
-        illegal_multiLabel = self.policy.illegalFlow(sink.name, multiLabel)
+        illegal_multiLabel = self.policy.illegalInformationFlow(sink.name, multiLabel)
 
         if illegal_multiLabel:
             for vulnName in illegal_multiLabel.labels:
-                self.vulnerabilities.addIllegalFlow(sink, vulnName, illegal_multiLabel)
+                self.vulnerabilities.addIllegalInformationFlow(
+                    sink, vulnName, illegal_multiLabel
+                )

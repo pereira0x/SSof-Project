@@ -40,20 +40,23 @@ done
 
 # Get the list of .js files in the slices folder and sort them
 if [ -z "$single_file" ]; then
-    js_files=$(find my_slices -type f -name "*.js" | sort)
+    js_files=$(find slices -type f -name "*.js" | sort)
 else
-    js_files="my_slices/$single_file"
+    js_files="slices/$single_file"
 fi
 
 # Loop through each .js file
 for file in $js_files; do
     # Get the corresponding patterns file
     patterns_file="${file%.js}.patterns.json"
-    output_file="${file%.js}.output.json"
-    echo "Running test for $file with patterns file $patterns_file and output file $output_file"
+    target_output_file="${file%.js}.output.json"
+    echo "Running test for $file with patterns file $patterns_file and output file $target_output_file"
     # Run the js_analyser.py command
     python3 js_analyser.py "$file" "$patterns_file"
-    python3 validate.py -o output.json -t "$output_file" > validation_output.txt
+    # remove "slices/" from the file path and append .js to the output file
+    output_file="${target_output_file#slices/}"
+    echo $output_file
+    python3 validate.py -o ./output/${output_file} -t "$target_output_file" > validation_output.txt
 
     # Check if the output contains the strings "MISSING FLOWS" or "WRONG FLOWS"
     if grep -qE "MISSING FLOWS|WRONG FLOWS|wrong type" validation_output.txt; then
@@ -68,9 +71,10 @@ for file in $js_files; do
     fi
 done
 
-# Remove validation_output.txt and output.json if --keep option is not provided
+# Remove validation_output.txt and JSON files in the ./output/ folder if --keep option is not provided
 if ! $keep_files; then
-    rm validation_output.txt output.json
+    rm validation_output.txt ./output/*.json
+    rmdir ./output
 fi
 
 # Display test results

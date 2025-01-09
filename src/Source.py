@@ -1,4 +1,4 @@
-from Symbol import Symbol
+from src.Symbol import Symbol
 
 
 class Source(Symbol):

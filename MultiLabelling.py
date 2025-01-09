@@ -16,10 +16,10 @@ class MultiLabelling:
             self.multiLabels[varName] = multiLabel
         else:
             raise ValueError("Invalid multiLabel")
-        
+
     def __repr__(self):
-            return f"MultiLabelling | multiLabels: {self.multiLabels}"
-        
+        return f"MultiLabelling | multiLabels: {self.multiLabels}"
+
     def __add__(self, other):
         if isinstance(other, MultiLabelling):
             newMultiLabelling = MultiLabelling()
@@ -45,5 +45,7 @@ class MultiLabelling:
     def deepcopy(self):
         newMultiLabelling = MultiLabelling()
         for varName in self.multiLabels:
-            newMultiLabelling.setMultiLabel(varName, self.multiLabels[varName].deepcopy())
+            newMultiLabelling.setMultiLabel(
+                varName, self.multiLabels[varName].deepcopy()
+            )
         return newMultiLabelling

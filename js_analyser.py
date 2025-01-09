@@ -26,11 +26,11 @@ def main():
     vulnerabilities = Vulnerabilities()
 
     ast = esprima.parseScript(slice, loc=True)
-    #print(ast)
-    
+    # print(ast)
+
     analyser = Analyser(policy, multiLabelling, vulnerabilities)
     analyser.visit(ast)
-    
+
     with open("output.json", "w") as f:
         vuln = json.dumps(vulnerabilities.toJSON(), indent=4)
         f.write(vuln)

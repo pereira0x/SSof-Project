@@ -4,7 +4,6 @@ import json
 
 
 class Vulnerabilities:
-
     def __init__(self):
         self.vulnerability = {}
         # maps name of vulnerability to the illegal flow (sink, labels[])
@@ -60,26 +59,29 @@ class Vulnerabilities:
             count = 1
             for sink, label in value:
                 for source, sanitizers in label.source_sanitizers:
-                    done = False
-                    for vuln in result:
-                        if (
-                            vuln["vulnerability"][0] == key
-                            and vuln["source"] == [source.name, source.lineno]
-                            and vuln["sink"] == [sink.name, sink.lineno]
-                        ):
-                            if not sanitizers:
-                                vuln["unsanitized_flows"] = "yes"
-                            else:
-                                vuln["sanitized_flows"].append(
-                                    [[x.name, x.lineno] for x in sanitizers]
-                                )
-                            done = True
-                            break
-                    if not done:
+                    vuln = next(
+                        (
+                            v
+                            for v in result
+                            if v["vulnerability"][0] == key
+                            and v["source"] == [source.name, source.lineno]
+                            and v["sink"] == [sink.name, sink.lineno]
+                        ),
+                        None,
+                    )
+                    if vuln:
+                        if not sanitizers:
+                            vuln["unsanitized_flows"] = "yes"
+                        else:
+                            vuln["sanitized_flows"].append(
+                                [[x.name, x.lineno] for x in sanitizers]
+                            )
+                    else:
                         vuln = {
                             "vulnerability": key + "_" + str(count),
                             "source": [source.name, source.lineno],
                             "sink": [sink.name, sink.lineno],
+                            "implicit": "no" if not label.is_implicit else "yes",
                         }
                         if not sanitizers:
                             vuln["unsanitized_flows"] = "yes"
@@ -89,7 +91,6 @@ class Vulnerabilities:
                             vuln["sanitized_flows"] = [
                                 [[x.name, x.lineno] for x in sanitizers]
                             ]
-                        vuln["implicit"] = "no" if not label.is_implicit else "yes"
                         result.append(vuln)
                         count += 1
 
